@@ -1,85 +1,113 @@
 ﻿using UnityEngine;
 using UnityEngine.UI;
 using System.Collections;
+using System;
 
 public class GameLoop : MonoBehaviour
 {
+    public Transform spawner;
 
-    public Text textBox;
-
+    public bool hasBushed = false;
     void Start()
     {
-        textBox.text = "0";
+        GlobalVariables.score = 0;
+        GlobalVariables.hasLost = false;
+        GlobalVariables.menu = false;
+        GlobalVariables.readyForSpawn = true;
+        menuCanvas.enabled = false;
+        hasBushed = false;
     }
 
     public Rigidbody2D box_pre;
 
-    int ms;
-    int s;
-
-    public Camera camera;
-    public Transform dropper;
-    public Transform checker;
-
-    public Vector3 modVector = new Vector3(0, -7.5f, 0);
-    public Vector3 spawnPosition = new Vector3(-5f, 1.5f, 0);
-    public Vector3 increment = new Vector3(0, 0.01f, 0);
-
-
+    public float fireDelay = .5f;
+    float nextFire = 3f;
+    float nextCloud = 2f;
+    
+    public Canvas menuCanvas;
     void FixedUpdate()
     {
-        ms += 1; //One FixedUpdate every 0.02 seconds
-
-        if (ms >= 50)
+        if (GlobalVariables.readyForSpawn && !GlobalVariables.menu && !GlobalVariables.hasLost)
         {
-            s++;
-            ms = 0;
+            nextFire -= Time.deltaTime;
+
+            if (nextFire <= 0)
+            {
+                nextFire = fireDelay;
+                spawnBox();
+            }
+        }
+        if (Camera.main.GetComponent<CameraHandler>().targetY > 5)
+        {
+            nextCloud -= Time.deltaTime;
+
+            if (nextCloud <= 0)
+            {
+                nextCloud = UnityEngine.Random.Range(15f, 20f);
+                spawnCloud();
+            }
         }
 
-        if (s == 9 && ms == 20)
+
+
+        if (GlobalVariables.hasLost && !GlobalVariables.menu)
         {
-            checkMove();
+            Camera.main.GetComponent<CameraHandler>().targetY = -4;
+            menuCanvas.enabled = true;
+            GlobalVariables.menu = true;
+
+
         }
 
-        if (s == 9 && ms == 30)
+
+        if (GlobalVariables.score == 9 && PlayerPrefs.GetInt("HighScore") == 11 && !hasBushed && GlobalVariables.eaasterEgg)
         {
-            unCheckMove();
+            GlobalVariables.readyForSpawn = false;
+            Camera.main.GetComponent<CameraHandler>().targetY = -2;
+            StartCoroutine(bush());
+            hasBushed = true;
         }
 
-
-        //Every 4 seconds
-        if (s == 4 && ms == 0)
+        if (GlobalVariables.restart)
         {
-            spawnBox();
+            Restart();
         }
-
-        if (s == 10)
-        {
-            s = 0;
-        }
-    }
-
-    void checkMove()
-    {
-        checker.position += modVector;
-    }
-
-    void unCheckMove()
-    {
-        checker.position -= modVector;
-    }
-
-    public void moveUp()
-    {
-        Debug.Log("moved");
-        camera.GetComponent<Transform>().position = Vector3.Lerp(camera.GetComponent<Transform>().position, camera.GetComponent<Transform>().position + increment, 1.0F);
-        dropper.position += increment;
-        checker.position += increment;
-        spawnPosition += increment;
     }
 
     void spawnBox()
     {
+        Vector3 spawnPosition = spawner.position;
         Instantiate(box_pre, spawnPosition, Quaternion.identity);
+    }
+
+    public Transform cloud_pre;
+    void spawnCloud()
+    {
+        Vector3 cloudPosition = new Vector3(spawner.position.x + 15f, spawner.position.y + 5 - UnityEngine.Random.Range(1f, 10f), spawner.position.z + 1f);
+        Instantiate(cloud_pre, cloudPosition, Quaternion.identity);
+    }
+
+    void Restart()
+    {
+        GlobalVariables.restart = false;
+        GlobalVariables.score = 0;
+        GlobalVariables.hasLost = false;
+        GlobalVariables.menu = false;
+        GlobalVariables.readyForSpawn = true;
+        GlobalVariables.restarted = true;
+        menuCanvas.enabled = false;
+        Camera.main.GetComponent<CameraHandler>().targetY = -4;
+    }
+
+
+
+    public Rigidbody2D plane_pre;
+    IEnumerator bush()
+    {
+        Vector3 planePos = new Vector3(15, Camera.main.GetComponent<CameraHandler>().targetY + 4, 0);
+        Debug.Log("bush did 9/11");
+        yield return new WaitForSeconds(3f);
+
+        Instantiate(plane_pre, planePos, Quaternion.identity);
     }
 }
